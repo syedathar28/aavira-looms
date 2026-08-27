@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aavira Looms — Coming Soon</title>
+<meta name="description" content="Aavira Looms — premium Indian handloom home textiles. Bedsheets, curtains, cushion covers, runners, dohars and more. Woven with warmth, rooted in tradition.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,500&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /*
+    Tokens pulled directly from this project's source:
+    - src/app/globals.css        (--background, --foreground, --card, --primary, --radius)
+    - src/components/layout/Hero.tsx        (headline / CTA button classes)
+    - src/components/layout/Newsletter.tsx  (email form + success state classes)
+    - src/components/layout/Footer.tsx      (social icon treatment, hairline dividers, bottom bar)
+  */
+  :root {
+    --background: #F7F3EC;
+    --foreground: #3A2E22;
+    --card: #EFE8DC;
+    --primary: #A9752F;
+    --primary-rgb: 169, 117, 47;
+    --primary-foreground: #ffffff;
+    /* Badge-only shade: --primary at ~10% darker. #A9752F + white text is only 3.98:1
+       (fails WCAG AA's 4.5:1 for normal-size text), and --foreground text on --primary
+       is worse (3.31:1). This shade + white text measures ~4.78:1, comfortably passing
+       AA at any label size while staying in the same gold family as --primary. */
+    --badge-bg: #98692A;
+    --border-input: #d1d5db;   /* Tailwind gray-300, used on Newsletter's input */
+    --border-hairline: #e5e7eb; /* Tailwind gray-200, used for section dividers */
+    --footer-bar: #E7E0D2;      /* Footer.tsx bottom bar background */
+    --error: #ef4444;           /* Tailwind red-500 */
+    --radius-md: 6px;           /* rounded-md: calc(0.5rem - 2px) */
+    --radius-lg: 8px;           /* rounded-lg: 0.5rem */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  h1, h2, .font-heading { font-family: 'Playfair Display', Georgia, serif; font-weight: 400; }
+
+  /* ---------- Full-screen intro preloader (the one signature animated moment on the page) ---------- */
+  /* Plays once per load: an outline of the "A" monogram — traced from the actual pixels of
+     ./aavira-logo.png (scanned left/right edges per row, not hand-guessed beziers), used
+     ONLY for this animation, NOT the real logo asset — draws itself stroke-by-stroke,
+     fills solid gold, holds briefly, then the whole overlay
+     fades away. The overlay is position:fixed and never touches document flow, so the
+     real page underneath — already fully rendered, with the real crisp PNG logo in place —
+     never shifts; there's nothing to hand off but a flat color fade.
+     pathLength="1" on each <path> (SVG2, all evergreen browsers) normalizes dash math to
+     0-1 regardless of actual path geometry, so stroke-dasharray/-dashoffset below stay
+     simple round numbers instead of needing per-path measured lengths.
+     align-items:flex-start + padding-top (not vertically centered) deliberately positions
+     the animated monogram near where the real logo sits under .container's padding-top +
+     badge — checked against a mid-fade screenshot, where centering it in the full viewport
+     put it well below the real logo, crossing through the headline as it faded. Padding
+     values mirror .container's own 768px/480px/360px breakpoints further down. */
+  .intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 139px;
+    background: var(--background);
+    animation: introOverlayFadeOut 0.6s ease-in-out 2s forwards;
+  }
+
+  @keyframes introOverlayFadeOut {
+    /* visibility + pointer-events land here (not just opacity) so the overlay stops
+       blocking clicks/hit-testing the instant the animation's forwards fill-mode holds
+       this end state — true even with JS disabled, independent of the animationend
+       cleanup below. */
+    to { opacity: 0; visibility: hidden; pointer-events: none; }
+  }
+
+  .intro-svg {
+    width: 150px;
+    height: auto;
+    overflow: visible;
+  }
+  @media (min-width: 768px) {
+    .intro-svg { width: 190px; }
+  }
+
+  .intro-path {
+    fill: var(--primary);
+    fill-opacity: 0;
+    stroke: var(--primary);
+    stroke-width: 2.2; /* scaled down to match the tighter 182x166 viewBox (was 240x210) */
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  /* --frame is ONE <path>, ONE simple closed loop (single "M...Z", no sub-loops), tracing
+     the whole "A" frame's outer silhouette in one pass: apex -> down the left leg's outer
+     edge -> left foot -> back up the left leg's inner edge -> straight across the narrow
+     counter gap -> down the right leg's inner edge -> right leg's tip -> back up its outer
+     edge -> apex (close). One boundary, one fill, one stroke.
+     History, because this took three attempts to get right:
+     1. Two separate <path> elements (left leg, right leg) meeting at the same apex
+        coordinate — geometrically touching, but each independently anti-aliased by the
+        renderer, which left a sub-pixel GAP neither shape's softened edge fully covered.
+     2. Patched that gap with a third shape layered on top — traded the gap for a visible
+        SEAM/overlap at the same spot (two more independently-anti-aliased fills touching).
+     3. Merged left+right into one <path> as two subpaths ("M...Z M...Z") sharing the exact
+        apex vertex — reduced but did NOT eliminate the seam. Confirmed by rasterizing and
+        reading raw pixel alpha values: a column of partial-alpha pixels still ran from the
+        apex down through the fill, because the left leg's inner edge and the right leg's
+        outer edge are two DIFFERENT lines that both happen to start at that same point —
+        near-coincident but not identical, which is enough for anti-aliasing to seam along.
+     The actual fix is this single-loop structure: there is no second edge anywhere near
+     the apex for anti-aliasing to seam along, because the whole frame is now one boundary.
+     Re-rasterized and re-confirmed pixel-by-pixel: only the two true outer-edge crossings
+     per scanline, nothing in between. */
+  .intro-path--frame { animation: introDraw 0.95s ease-in-out 0s forwards,   introFill 0.45s ease-in-out 1.3s forwards; }
+  .intro-path--tail   { animation: introDraw 0.7s ease-in-out 0.6s forwards, introFill 0.45s ease-in-out 1.3s forwards; }
+
+  @keyframes introDraw {
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes introFill {
+    /* Fill fades in as the stroke fades out, so the traced outline becomes a solid shape
+       rather than leaving a doubled edge once fill-opacity reaches 1. */
+    to { fill-opacity: 1; stroke-opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* No drawing motion at all: the monogram sits at its final filled state immediately,
+       and the overlay just does a quick, plain fade instead of the full ~2.6s sequence. */
+    .intro-path { animation: none; fill-opacity: 1; stroke-opacity: 0; }
+    .intro-overlay { animation: introOverlayFadeOut 0.3s ease-out 0s forwards; }
+  }
+
+  .container {
+    width: 100%;
+    max-width: 42rem; /* max-w-2xl, roomier than the Newsletter's max-w-xl to give headline room */
+    margin: 0 auto;
+    padding: 5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+  }
+
+  /* ---------- "Launching Soon" eyebrow badge ---------- */
+  /* The one explicit pre-launch cue on the page — solid pill, bold/uppercase/letter-spaced
+     Poppins (a UI label, not a heading, so it deliberately does NOT use font-heading). */
+  .eyebrow-badge {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.75rem;      /* 12px */
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #ffffff;
+    background: var(--badge-bg);
+    padding: 10px 20px;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-sm);
+    margin: 0 0 24px;
+  }
+  @media (min-width: 768px) {
+    .eyebrow-badge { font-size: 0.8125rem; padding: 11px 24px; } /* 13px */
+  }
+  @media (max-width: 360px) {
+    .eyebrow-badge { font-size: 0.6875rem; padding: 8px 16px; letter-spacing: 0.1em; } /* 11px */
+  }
+
+  /* ---------- Wordmark (logo) ---------- */
+  /* Replaces the old text wordmark with the real logo asset (1774x887, true 2:1 ratio).
+     width/height attributes on the <img> plus this aspect-ratio give the browser the
+     intrinsic size before the file loads, so there's no layout shift when it decodes.
+     Sized up ~15% from the original pass — the fine "the art of home" subtext baked into
+     the raster was reading soft/small at 200-260px, and this still stays well under the
+     headline's footprint so it supports rather than competes with it. */
+  .wordmark-logo {
+    display: block;
+    width: 230px;
+    height: auto;
+    aspect-ratio: 1774 / 887;
+    margin: 0 auto;
+  }
+  @media (min-width: 768px) {
+    .wordmark-logo { width: 300px; }
+  }
+
+  /* ---------- Headline (exact classes from Hero.tsx h1) ---------- */
+  h1.headline {
+    font-size: 3rem;      /* text-5xl */
+    line-height: 1.25;    /* leading-tight */
+    color: var(--primary);
+    margin: 40px 0 24px;  /* mb-6 */
+  }
+  @media (min-width: 768px) {
+    h1.headline { font-size: 3.75rem; } /* md:text-6xl */
+  }
+  @media (min-width: 1024px) {
+    h1.headline { font-size: 4.5rem; }  /* lg:text-7xl */
+  }
+
+  /* ---------- Tagline ---------- */
+  /* Styled like BrandStory's heading treatment (font-heading, text-primary) since this exact
+     phrase is literally the BrandStory heading elsewhere on the real site — kept smaller here
+     since it's a supporting line, not the page's h1.
+     font-weight 500 (not 400): the Google Fonts link previously only loaded Playfair
+     Display's default weight, so this italic text was rendering at its thinnest/hairline
+     weight — soft and hard to read at this size. 500 is now loaded explicitly for the
+     italic axis specifically for this. Size bumped up alongside it. */
+  .tagline {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.375rem;   /* 22px, up from text-xl/20px */
+    line-height: 1.875rem;
+    color: var(--primary);
+    margin: 0 0 24px;
+  }
+  @media (min-width: 768px) {
+    .tagline { font-size: 1.625rem; line-height: 2.125rem; } /* 26px, up from text-2xl/24px */
+  }
+
+  /* ---------- Launch note (exact classes from Newsletter.tsx body copy) ---------- */
+  .launch-note {
+    font-size: 1.125rem;     /* text-lg */
+    line-height: 1.625;      /* leading-relaxed */
+    color: rgba(58, 46, 34, 0.8); /* text-foreground/80 */
+    max-width: 34rem;        /* max-w-xl */
+    margin: 0 auto 40px;     /* mb-10 */
+    font-weight: 400;
+  }
+
+  .launch-note strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  /* ---------- Email capture form (exact classes from Newsletter.tsx) ---------- */
+  form.signup {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+    max-width: 34rem;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+  }
+  @media (min-width: 768px) {
+    form.signup { flex-direction: row; }
+  }
+
+  .field-group {
+    width: 100%;
+    text-align: left;
+    position: relative;
+  }
+
+  label.sr-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  input[type="email"] {
+    width: 100%;
+    padding: 16px 24px; /* py-4 px-6 */
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    color: var(--foreground);
+    background: #ffffff;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
+    outline-offset: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  input[type="email"]::placeholder { color: #9ca3af; }
+
+  input[type="email"]:focus-visible {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.5); /* focus:ring-2 focus:ring-primary/50 */
+    outline: 2px solid transparent;
+  }
+
+  input[type="email"][aria-invalid="true"] {
+    border-color: var(--error);
+  }
+
+  .error-msg {
+    display: none;
+    font-size: 0.875rem; /* text-sm */
+    color: var(--error);
+    margin-top: 8px;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .error-msg.visible { display: block; }
+
+  button.submit-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 16px 32px; /* py-4 px-8 */
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    font-weight: 500; /* font-medium */
+    color: var(--primary-foreground);
+    background: var(--primary);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+  }
+  @media (min-width: 768px) {
+    button.submit-btn { width: auto; }
+  }
+
+  button.submit-btn:hover {
+    background: rgba(var(--primary-rgb), 0.9); /* hover:bg-primary/90 */
+    box-shadow: var(--shadow-md);
+  }
+
+  button.submit-btn:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 3px;
+  }
+
+  button.submit-btn:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  /* ---------- Success state (exact classes from Newsletter.tsx isSubmitted block) ---------- */
+  .success-msg {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 24px;                 /* p-6 */
+    background: rgba(255, 255, 255, 0.6); /* bg-white/60 */
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .success-msg.visible { display: inline-flex; }
+
+  .success-msg p {
+    font-size: 1.25rem;   /* text-xl */
+    font-weight: 500;     /* font-medium */
+    color: var(--primary);
+    margin: 0;
+  }
+
+  form.signup.hidden { display: none; }
+
+  /* ---------- Social icon row (exact treatment from Footer.tsx — bare icons, no chrome) ---------- */
+  .social-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 40px 0 0;
+  }
+
+  .social-row a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--foreground);
+    transition: color 0.2s ease;
+    border-radius: var(--radius-md);
+  }
+
+  .social-row a:hover { color: var(--primary); }
+
+  .social-row a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .social-row svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .social-row svg.filled {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  /* ---------- Footer (exact bottom-bar treatment from Footer.tsx) ---------- */
+  footer {
+    width: 100%;
+    margin-top: auto;
+    background: var(--footer-bar);
+    padding: 16px;
+    text-align: center;
+  }
+
+  footer p {
+    font-size: 0.875rem; /* text-sm */
+    color: rgba(58, 46, 34, 0.7); /* text-[#3A2E22]/70 */
+    margin: 0;
+    line-height: 1.8;
+  }
+
+  footer a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+
+  footer a:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Responsive down to 360px ---------- */
+  @media (max-width: 480px) {
+    .container { padding: 3.5rem 1.25rem 3rem; }
+    .intro-overlay { padding-top: 115px; }
+  }
+
+  @media (max-width: 360px) {
+    .container { padding: 3rem 1rem 2.5rem; }
+    h1.headline { font-size: 2.25rem; }
+    .wordmark-logo { width: 195px; }
+    .intro-overlay { padding-top: 99px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Decorative preloader only — aria-hidden, no focusable children, position:fixed so it
+     never affects the real page's layout. The real content below is reachable by screen
+     readers immediately, with no dependency on this animation finishing. -->
+<div class="intro-overlay" aria-hidden="true">
+  <svg class="intro-svg" viewBox="0 0 182 166" xmlns="http://www.w3.org/2000/svg" focusable="false">
+    <path class="intro-path intro-path--frame" pathLength="1" d="M 80.19,0 L 68.08,27.69 L 66.92,30.77 L 65.38,33.85 L 64.23,36.92 L 62.69,40 L 61.54,43.08 L 60,46.15 L 58.85,49.23 L 57.31,52.31 L 56.15,55.38 L 55,58.46 L 53.85,61.54 L 52.31,64.62 L 51.15,67.69 L 49.62,70.77 L 48.46,73.85 L 47.31,76.92 L 45.77,80 L 44.62,83.08 L 43.08,86.15 L 41.92,89.23 L 40.77,92.31 L 39.23,95.38 L 38.08,98.46 L 36.92,101.54 L 35.38,104.62 L 34.23,107.69 L 32.69,110.77 L 31.54,113.85 L 30,116.92 L 28.85,120 L 27.31,123.08 L 26.15,126.15 L 25,129.23 L 23.46,132.31 L 22.31,135.38 L 20.77,138.46 L 19.62,141.54 L 18.08,144.62 L 16.92,147.69 L 15.38,150.77 L 13.85,153.85 L 11.92,156.92 L 9.23,160 L 5.38,163.08 L 0,165.38 L 28.85,165.38 L 24.23,163.08 L 21.54,160 L 20.38,156.92 L 20.77,153.85 L 21.92,150.77 L 23.08,147.69 L 24.62,144.62 L 25.77,141.54 L 26.92,138.46 L 28.08,135.38 L 29.62,132.31 L 30.77,129.23 L 32.31,126.15 L 33.46,123.08 L 35,120 L 36.15,116.92 L 37.69,113.85 L 38.85,110.77 L 40.38,107.69 L 41.54,104.62 L 42.69,101.54 L 44.23,98.46 L 45.38,95.38 L 46.92,92.31 L 48.08,89.23 L 49.23,86.15 L 50.77,83.08 L 51.92,80 L 53.46,76.92 L 54.62,73.85 L 55.77,70.77 L 57.31,67.69 L 58.46,64.62 L 59.62,61.54 L 61.15,58.46 L 62.31,55.38 L 63.46,52.31 L 65,49.23 L 66.15,46.15 L 67.31,43.08 L 68.85,40 L 70.38,36.92 L 71.54,33.85 L 72.69,30.77 L 74.23,27.69 L 75,27.69 L 76.54,30.77 L 78.08,33.85 L 79.62,36.92 L 80.77,40 L 82.31,43.08 L 83.85,46.15 L 85.38,49.23 L 86.54,52.31 L 88.08,55.38 L 89.62,58.46 L 91.15,61.54 L 92.31,64.62 L 93.85,67.69 L 95.38,70.77 L 96.92,73.85 L 98.08,76.92 L 99.62,80 L 101.15,83.08 L 102.69,86.15 L 103.85,89.23 L 105.38,92.31 L 106.92,95.38 L 108.46,98.46 L 110,101.54 L 111.54,104.62 L 112.69,107.69 L 114.23,110.77 L 115.77,113.85 L 117.69,116.92 L 119.62,120 L 121.92,123.08 L 124.23,126.15 L 126.92,129.23 L 129.62,132.31 L 132.31,135.38 L 135.77,138.46 L 139.23,141.54 L 143.08,144.62 L 147.31,147.69 L 151.92,150.77 L 158.08,153.85 L 167.31,156.92 L 177.31,163.08 L 181.54,163.08 L 168.08,156.92 L 162.31,153.85 L 157.69,150.77 L 154.23,147.69 L 151.15,144.62 L 148.85,141.54 L 146.54,138.46 L 144.62,135.38 L 142.69,132.31 L 140.77,129.23 L 139.23,126.15 L 137.69,123.08 L 136.15,120 L 134.62,116.92 L 133.08,113.85 L 131.92,110.77 L 130.38,107.69 L 128.85,104.62 L 127.69,101.54 L 126.15,98.46 L 124.62,95.38 L 123.46,92.31 L 121.92,89.23 L 120.38,86.15 L 118.85,83.08 L 117.69,80 L 116.15,76.92 L 115,73.85 L 113.46,70.77 L 111.92,67.69 L 110.38,64.62 L 109.23,61.54 L 107.69,58.46 L 106.15,55.38 L 105,52.31 L 103.46,49.23 L 101.92,46.15 L 100.77,43.08 L 99.23,40 L 97.69,36.92 L 96.15,33.85 L 95,30.77 L 93.46,27.69 Z"></path>
+    <path class="intro-path intro-path--tail" pathLength="1" d="M 46.54,93.08 L 45.38,95.38 L 44.62,97.69 L 66.54,100 L 71.92,102.31 L 76.15,104.62 L 79.62,106.92 L 82.31,109.23 L 85,111.54 L 87.31,113.85 L 89.23,116.15 L 91.54,118.46 L 93.46,120.77 L 95.38,123.08 L 96.92,125.38 L 98.85,127.69 L 100.77,130 L 102.69,132.31 L 104.23,134.62 L 106.15,136.92 L 108.08,139.23 L 110.38,141.54 L 112.69,143.85 L 115,146.15 L 117.69,148.46 L 120,150.77 L 123.08,153.08 L 126.54,155.38 L 130,157.69 L 134.62,160 L 139.62,162.31 L 146.54,164.62 L 149.23,165.38 L 175.77,165.38 L 178.08,164.62 L 165.77,162.31 L 158.08,160 L 152.31,157.69 L 148.08,155.38 L 144.23,153.08 L 140.77,150.77 L 137.69,148.46 L 134.62,146.15 L 131.92,143.85 L 129.23,141.54 L 126.92,139.23 L 124.62,136.92 L 122.69,134.62 L 120.38,132.31 L 118.85,130 L 116.92,127.69 L 115,125.38 L 113.08,123.08 L 111.54,120.77 L 109.62,118.46 L 107.69,116.15 L 105.77,113.85 L 103.46,111.54 L 101.15,109.23 L 98.85,106.92 L 96.15,104.62 L 93.08,102.31 L 89.23,100 L 84.62,97.69 L 79.62,95.38 L 70.38,93.08 Z"></path>
+  </svg>
+</div>
+
+<div class="container">
+
+  <p class="eyebrow-badge">Launching Soon</p>
+
+  <!-- TODO: once this becomes a real Next.js page (Phase 4), switch src back to
+       /aavira-logo.png to use the copy already sitting in public/. Relative path is
+       only so this standalone file previews correctly via file:// for now. -->
+  <img
+    src="./aavira-logo.png"
+    alt="Aavira Looms — the art of home"
+    width="1774"
+    height="887"
+    class="wordmark-logo"
+  >
+
+  <h1 class="headline font-heading">Elevate Your Living Space</h1>
+  <p class="tagline">Woven with Warmth, Rooted in Tradition</p>
+
+  <p class="launch-note">
+    Our looms are hard at work on the first collection — <strong>bedsheets, curtains,
+    cushion covers, runners, dohars &amp; more</strong> — handcrafted the traditional way.
+    Ready soon.
+  </p>
+
+  <!-- TODO: wire this form action to your Formspree endpoint, e.g.
+       <form class="signup" action="https://formspree.io/f/XXXXXXX" method="POST">
+       Currently handled client-side only, with no real backend. -->
+  <form class="signup" id="signupForm" novalidate>
+    <div class="field-group">
+      <label class="sr-label" for="email">Email address</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="Enter your email"
+        autocomplete="email"
+        aria-describedby="emailError"
+        aria-invalid="false"
+        required
+      >
+      <p class="error-msg" id="emailError" role="alert">Please enter a valid email address.</p>
+    </div>
+    <button type="submit" class="submit-btn" id="submitBtn">Notify Me</button>
+  </form>
+
+  <div class="success-msg" id="successMsg" role="status">
+    <p>Thank you — you're on the list!</p>
+  </div>
+
+  <div class="social-row">
+    <!-- TODO: replace href="#" with the real Instagram profile URL -->
+    <a href="#" aria-label="Follow Aavira Looms on Instagram">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+      </svg>
+    </a>
+    <!-- TODO: replace href="#" with the real WhatsApp chat/business link -->
+    <a href="#" aria-label="Chat with Aavira Looms on WhatsApp">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="filled">
+        <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.2h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.13h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.37c0-4.53 3.7-8.22 8.24-8.22 2.2 0 4.27.86 5.82 2.41a8.16 8.16 0 0 1 2.41 5.82c0 4.54-3.7 8.21-8.23 8.21zm4.51-6.15c-.25-.12-1.46-.72-1.68-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.79.96-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43-.14-.01-.31-.01-.47-.01a.9.9 0 0 0-.65.31c-.23.25-.86.84-.86 2.04s.88 2.37 1 2.53c.12.17 1.73 2.64 4.2 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.46-.6 1.66-1.17.21-.58.21-1.08.14-1.18-.06-.11-.22-.17-.47-.29z"></path>
+      </svg>
+    </a>
+    <!-- TODO: replace href="#" with mailto:hello@aaviralooms.in or a contact-form link, as preferred -->
+    <a href="#" aria-label="Email Aavira Looms">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+        <path d="m22 6-10 7L2 6"></path>
+      </svg>
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  <p>
+    Questions? Write to <a href="mailto:hello@aaviralooms.in">hello@aaviralooms.in</a>
+  </p>
+  <p>&copy; <span id="year">2026</span> Aavira Looms. All rights reserved.</p>
+</footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  (function () {
+    var overlay = document.querySelector('.intro-overlay');
+    if (!overlay) return;
+    overlay.addEventListener('animationend', function (e) {
+      if (e.animationName === 'introOverlayFadeOut') {
+        overlay.remove();
+      }
+    });
+  })();
+
+  (function () {
+    var form = document.getElementById('signupForm');
+    var emailInput = document.getElementById('email');
+    var errorMsg = document.getElementById('emailError');
+    var successMsg = document.getElementById('successMsg');
+    var submitBtn = document.getElementById('submitBtn');
+
+    function isValidEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var value = emailInput.value.trim();
+
+      if (!isValidEmail(value)) {
+        emailInput.setAttribute('aria-invalid', 'true');
+        errorMsg.classList.add('visible');
+        emailInput.focus();
+        return;
+      }
+
+      emailInput.setAttribute('aria-invalid', 'false');
+      errorMsg.classList.remove('visible');
+
+      // TODO: replace with real submission once Formspree endpoint is wired up
+      // (see the <form> action TODO above). For now this just simulates success.
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+
+      setTimeout(function () {
+        form.classList.add('hidden');
+        successMsg.classList.add('visible');
+      }, 500);
+    });
+
+    emailInput.addEventListener('input', function () {
+      if (emailInput.getAttribute('aria-invalid') === 'true' && isValidEmail(emailInput.value.trim())) {
+        emailInput.setAttribute('aria-invalid', 'false');
+        errorMsg.classList.remove('visible');
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>

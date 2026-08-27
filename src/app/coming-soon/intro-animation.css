@@ -1,0 +1,86 @@
+/*
+  Ported verbatim from the standalone coming-soon.html's verified-correct intro
+  animation (the "A" monogram draws -> fills -> holds -> the overlay fades away).
+  Kept as plain CSS rather than Tailwind utilities: the stroke-dasharray/dashoffset
+  choreography and its 3 keyframes went through several rounds of pixel-level
+  debugging (an apex seam bug, fixed by restructuring the SVG path into a single
+  closed loop) — porting the exact same CSS keeps that verified behavior intact
+  instead of risking subtly different behavior from a translation into arbitrary
+  Tailwind animate-[...] utilities.
+
+  Everything else on this page (badge, logo, headline, form, footer, etc.) uses
+  ordinary Tailwind utility classes, matching the rest of this project's components.
+*/
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 139px;
+  background: var(--background);
+  animation: introOverlayFadeOut 0.6s ease-in-out 2s forwards;
+}
+
+@media (max-width: 480px) {
+  .intro-overlay { padding-top: 115px; }
+}
+
+@media (max-width: 360px) {
+  .intro-overlay { padding-top: 99px; }
+}
+
+@keyframes introOverlayFadeOut {
+  /* visibility + pointer-events land here (not just opacity) so the overlay stops
+     blocking clicks/hit-testing the instant the animation's forwards fill-mode
+     holds this end state — true even with JS disabled, independent of the
+     animationend cleanup in ComingSoonClient.tsx. */
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+
+.intro-svg {
+  width: 150px;
+  height: auto;
+  overflow: visible;
+}
+@media (min-width: 768px) {
+  .intro-svg { width: 190px; }
+}
+
+.intro-path {
+  fill: var(--primary);
+  fill-opacity: 0;
+  stroke: var(--primary);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+/* --frame is ONE <path>, ONE simple closed loop tracing the whole "A" frame's outer
+   silhouette in one pass (apex -> left outer edge -> left foot -> left inner edge ->
+   across the counter gap -> right inner edge -> right tip -> right outer edge ->
+   apex). One boundary, one fill, one stroke -- this is what eliminates the apex
+   anti-aliasing seam two earlier (separate-element) approaches both had. */
+.intro-path--frame { animation: introDraw 0.95s ease-in-out 0s forwards, introFill 0.45s ease-in-out 1.3s forwards; }
+.intro-path--tail   { animation: introDraw 0.7s ease-in-out 0.6s forwards, introFill 0.45s ease-in-out 1.3s forwards; }
+
+@keyframes introDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes introFill {
+  /* Fill fades in as the stroke fades out, so the traced outline becomes a solid
+     shape rather than leaving a doubled edge once fill-opacity reaches 1. */
+  to { fill-opacity: 1; stroke-opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No drawing motion at all: the monogram sits at its final filled state
+     immediately, and the overlay just does a quick, plain fade instead of the
+     full ~2.6s sequence. */
+  .intro-path { animation: none; fill-opacity: 1; stroke-opacity: 0; }
+  .intro-overlay { animation: introOverlayFadeOut 0.3s ease-out 0s forwards; }
+}
